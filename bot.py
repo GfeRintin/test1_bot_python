@@ -54,7 +54,7 @@ def callback(call):
             ]
             info_me_markup.add(*item_info_about_me)
             bot.edit_message_text(chat_id=call.message.chat.id, message_id=call.message.message_id,
-                                  text="Связь с создателем", reply_markup=info_me_markup)
+                                  text="Связь с создателем\n""Лучше не связывайся с ним.", reply_markup=info_me_markup)
 
 @bot.callback_query_handler(func=lambda call: True)
 def callback_back(call):

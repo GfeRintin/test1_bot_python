@@ -28,10 +28,11 @@ def start(message):
                           first_name=message.from_user.first_name)
 
     bot.send_message(message.chat.id, "Список доступных команд\n"
-                                      "📲 /network - связь с нами\n"
-                                      "📲 /help - Справка\n"
+                                      "/network - связь с нами\n"
+                                      "/help - Справка\n"
                                       "/sub - подписаться на уведомления\n"
-                                      "/unsub - отписаться от уведомлений")
+                                      "/unsub - отписаться от уведомлений\n"
+                                      "/delete_user - Удалить себя из базы данных")
 
 
 # help - справка
@@ -81,6 +82,15 @@ def unsubscribe(message: types.Message):
         # если он уже есть, то просто обновляем ему статус подписки
         db.update_subscription(message.from_user.id, False)
         bot.send_message(message.chat.id, "Вы успешно отписаны от рассылки.")
+
+
+# /delete_user
+@bot.message_handler(commands=['delete_user'])
+def delete_user(message: types.Message):
+    if db.subscriber_exists(message.from_user.id):
+        db.delete_subscription(message.from_user.id)
+        db.commit_subscription()
+        bot.send_message(message.chat.id, "Пользователь удалён из базы данных")
 
 
 # callbacki от главного меню

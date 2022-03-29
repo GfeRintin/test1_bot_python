@@ -1,15 +1,37 @@
 import telebot
 from telebot import types
+import time
+import sqlite3
 
-bot = telebot.TeleBot("5261331248:AAFoCVFVo41-crHgKcTTLdROF-AcVLjeYgs")
+import sys
+
+# insert at 1, 0 is the script path (or '' in REPL)
+sys.path.insert(1, r"C:\Users\Слава\test1_bot_python\DB")
+
+from SQLDateBase import SQLighter
+import TOKEN
+
+bot = telebot.TeleBot(TOKEN.Token)
+
+# инициализируем соединение с БД
+db = SQLighter(TOKEN.DB)
 
 
 # Доступные команды
 @bot.message_handler(commands=['start'])
 def start(message):
+    # Регистрируем пользователя
+    if not db.subscriber_exists(message.from_user.id):
+        # если юзера нет в базе, добавляем его
+        bot.send_message(message.chat.id, 'Привет, ' + str(message.from_user.first_name) + '!')
+        db.add_subscriber(message.from_user.id, username=message.from_user.username,
+                          first_name=message.from_user.first_name)
+
     bot.send_message(message.chat.id, "Список доступных команд\n"
                                       "📲 /network - связь с нами\n"
-                                      "📲 /help - Справка")
+                                      "📲 /help - Справка\n"
+                                      "/sub - подписаться на уведомления\n"
+                                      "/unsub - отписаться от уведомлений")
 
 
 # help - справка
@@ -23,7 +45,7 @@ def help(message):
                      reply_markup=help_me)
 
 
-# start - таблица с информации о разных людях
+# network - таблица с информации о разных людях
 @bot.message_handler(commands=['network'])
 def network(message):
     markup = types.InlineKeyboardMarkup()
@@ -39,10 +61,32 @@ def network(message):
     bot.send_message(message.chat.id, "Лучше не связывайся с нами😈", reply_markup=markup)
 
 
+# /sub - подписаться
+@bot.message_handler(commands=['sub'])
+def subscribe(message: types.Message):
+    # если он уже есть, то просто обновляем ему статус подписки
+    db.update_subscription(message.from_user.id, True)
+    bot.send_message(message.chat.id,
+                     "Вы успешно подписались на рассылку!\nЖдите, скоро выйдут новые обзоры и вы узнаете о них первыми =)")
+
+
+# /unsub - отписаться
+@bot.message_handler(commands=['unsub'])
+def unsubscribe(message: types.Message):
+    if not db.subscriber_exists(message.from_user.id):
+        # если юзера нет в базе, добавляем его с неактивной подпиской (запоминаем)
+        db.add_subscriber(message.from_user.id, False)
+        bot.send_message(message.chat.id, "Вы итак не подписаны.")
+    else:
+        # если он уже есть, то просто обновляем ему статус подписки
+        db.update_subscription(message.from_user.id, False)
+        bot.send_message(message.chat.id, "Вы успешно отписаны от рассылки.")
+
+
 # callbacki от главного меню
 @bot.callback_query_handler(func=lambda call: True)
 def callback(call):
-            # инфо о Соф
+    # инфо о Соф
     if call.message:
         if call.data == 'test':
             a = types.InlineKeyboardMarkup()
@@ -68,5 +112,15 @@ def callback(call):
             return network(call.message)
 
 
-if __name__ == '__main__':
-    bot.infinity_polling()
+# echo bot
+@bot.message_handler(content_types=["text"])
+def handle_text(message):
+    bot.send_message(message.chat.id, 'Вы написали: ' + message.text + '. Я не знаю что мне с этим делать')
+
+
+if __name__ == '__main__':  # чтобы код выполнялся только при запуске в виде сценария, а не при импорте модуля
+    try:
+        bot.polling(none_stop=True)  # запуск бота
+    except Exception as ex:
+        print(ex)  # или import traceback; traceback.print_exc() для печати полной информации
+        # time.sleep(15)

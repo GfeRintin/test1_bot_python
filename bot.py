@@ -121,7 +121,6 @@ def referral(message):
 
 
 def start_2(message):
-    print(message.text)
     if bool(len(db.subscriber_exists_id(message.text))):
         db.referral_code_1(message.text, message.from_user.id)  # Добавляем реферальный код
         db.referral_code_2(message.text)  # Увеличиваем число подписчиков

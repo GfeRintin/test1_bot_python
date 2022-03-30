@@ -25,14 +25,18 @@ def start(message):
         # если юзера нет в базе, добавляем его
         bot.send_message(message.chat.id, 'Привет, ' + str(message.from_user.first_name) + '!')
         db.add_subscriber(message.from_user.id, username=message.from_user.username,
-                          first_name=message.from_user.first_name)
+                          first_name=message.from_user.first_name, last_name=message.from_user.last_name)
 
     bot.send_message(message.chat.id, "Список доступных команд\n"
                                       "/network - связь с нами\n"
                                       "/help - Справка\n"
                                       "/sub - подписаться на уведомления\n"
                                       "/unsub - отписаться от уведомлений\n"
-                                      "/delete_user - Удалить себя из базы данных")
+                                      "/delete_user - Удалить себя из базы данных\n"""
+                                      "/getsub - Вывести список всех подписчиков\n"
+                                      "/getuser - Вывести список всех пользователей\n"""
+                                      "/referral - Реферальная система\n"
+                                      "/Hello")
 
 
 # help - справка
@@ -84,6 +88,18 @@ def unsubscribe(message: types.Message):
         bot.send_message(message.chat.id, "Вы успешно отписаны от рассылки.")
 
 
+# /getsub - получение всех подписчиков
+@bot.message_handler(commands=['getsub'])
+def getsub(message: types.Message):
+    bot.send_message(message.chat.id, " \n".join(map(str, db.get_subscriptions())))
+
+
+# /getuser - получение всех подписчиков
+@bot.message_handler(commands=['getuser'])
+def getsub(message: types.Message):
+    bot.send_message(message.chat.id, " \n".join(map(str, db.get_user())))
+
+
 # /delete_user
 @bot.message_handler(commands=['delete_user'])
 def delete_user(message: types.Message):
@@ -91,6 +107,24 @@ def delete_user(message: types.Message):
         db.delete_subscription(message.from_user.id)
         db.commit_subscription()
         bot.send_message(message.chat.id, "Пользователь удалён из базы данных")
+
+
+# /referral
+@bot.message_handler(commands=['referral'])
+def referral(message):
+    msg=bot.send_message(message.chat.id, "Введите реферальный код друга:")
+    bot.register_next_step_handler(msg, start_2)
+
+
+def start_2(message):
+    print(message.text)
+    if bool(len(db.subscriber_exists_id(message.text))):
+        db.referral_code_1(message.text, message.from_user.id)  # Добавляем реферальный код
+        db.referral_code_2(message.text)  # Увеличиваем число подписчиков
+        db.commit_subscription()
+        bot.send_message(message.chat.id, 'Ваш друг успешно найден: ' + " \n".join(map(str, db.subscriber_exists_id(message.text))) + "\n Код подтверждён")
+    else:
+        bot.send_message(message.chat.id, "Пользователя с данным кодом не существует")
 
 
 # callbacki от главного меню

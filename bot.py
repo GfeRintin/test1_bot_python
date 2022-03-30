@@ -21,7 +21,7 @@ db = SQLighter(TOKEN.DB)
 @bot.message_handler(commands=['start'])
 def start(message):
     # Регистрируем пользователя
-    if not db.subscriber_exists(message.from_user.id):
+    if not bool(len(db.subscriber_exists(message.from_user.id))):
         # если юзера нет в базе, добавляем его
         bot.send_message(message.chat.id, 'Привет, ' + str(message.from_user.first_name) + '!')
         db.add_subscriber(message.from_user.id, username=message.from_user.username,
@@ -78,7 +78,7 @@ def subscribe(message: types.Message):
 # /unsub - отписаться
 @bot.message_handler(commands=['unsub'])
 def unsubscribe(message: types.Message):
-    if not db.subscriber_exists(message.from_user.id):
+    if not bool(len(db.subscriber_exists(message.from_user.id))):
         # если юзера нет в базе, добавляем его с неактивной подпиской (запоминаем)
         db.add_subscriber(message.from_user.id, False)
         bot.send_message(message.chat.id, "Вы итак не подписаны.")
@@ -103,7 +103,7 @@ def getsub(message: types.Message):
 # /delete_user
 @bot.message_handler(commands=['delete_user'])
 def delete_user(message: types.Message):
-    if db.subscriber_exists(message.from_user.id):
+    if bool(len(db.subscriber_exists(message.from_user.id))):
         db.delete_subscription(message.from_user.id)
         db.commit_subscription()
         bot.send_message(message.chat.id, "Пользователь удалён из базы данных")
@@ -112,8 +112,12 @@ def delete_user(message: types.Message):
 # /referral
 @bot.message_handler(commands=['referral'])
 def referral(message):
-    msg=bot.send_message(message.chat.id, "Введите реферальный код друга:")
-    bot.register_next_step_handler(msg, start_2)
+    if not int(db.subscriber_exists(message.from_user.id)[0][6]):
+        msg=bot.send_message(message.chat.id, "Введите реферальный код друга, если у вас нет кода введите 6:\n")
+        bot.register_next_step_handler(msg, start_2)
+    else:
+        bot.send_message(message.chat.id, "Вы уже вводили реферальный код")
+        bot.send_message(message.chat.id, "Ваш реферальный код - " + db.subscriber_exists(message.from_user.id)[0][0])
 
 
 def start_2(message):
@@ -122,7 +126,7 @@ def start_2(message):
         db.referral_code_1(message.text, message.from_user.id)  # Добавляем реферальный код
         db.referral_code_2(message.text)  # Увеличиваем число подписчиков
         db.commit_subscription()
-        bot.send_message(message.chat.id, 'Ваш друг успешно найден: ' + " \n".join(map(str, db.subscriber_exists_id(message.text))) + "\n Код подтверждён")
+        bot.send_message(message.chat.id, 'Ваш друг успешно найден: \n' + " ".join(map(str, db.subscriber_exists_id(message.text))) + "\n Код подтверждён")
     else:
         bot.send_message(message.chat.id, "Пользователя с данным кодом не существует")
 

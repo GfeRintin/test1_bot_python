@@ -22,7 +22,7 @@ class SQLighter:
         """Проверяем, есть ли уже юзер в базе"""
         with self.connection:
             result = self.cursor.execute('SELECT * FROM `users` WHERE `user_id` = ?', (user_id,)).fetchall()
-            return bool(len(result))
+            return result
 
     def add_subscriber(self, user_id, username, first_name, last_name, status_sub=True):
         """Добавляем нового подписчика"""

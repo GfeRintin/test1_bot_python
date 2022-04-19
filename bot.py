@@ -200,16 +200,6 @@ def handle_text(message):
     bot.send_message(message.chat.id, 'Вы написали: ' + message.text + '. Я не знаю что мне с этим делать')
 
 
-# очистка чата
-# def clear(self, update, context):
-#     new_message_id = message.message_id
-#     while new_message_id > 1:
-#         try:
-#             context.bot.delete_message(chat_id=message.chat_id, message_id=new_message_id)
-#         except Exception as error:
-#             print(f'Message_id does not exist: {new_message_id} - {error}')
-#         new_message_id = new_message_id - 1
-
 if __name__ == '__main__':  # чтобы код выполнялся только при запуске в виде сценария, а не при импорте модуля
     try:
         bot.polling(none_stop=True)  # запуск бота

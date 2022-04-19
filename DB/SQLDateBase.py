@@ -26,6 +26,8 @@ class SQLighter:
 
     def add_subscriber(self, user_id, username, first_name, last_name, status_sub=True):
         """Добавляем нового подписчика"""
+        if not last_name:
+            last_name= False
         with self.connection:
             return self.cursor.execute(
                 "INSERT INTO users (`user_id`,`status_sub`,`username`,'first_name','last_name') VALUES(?,?,?,?,?)",

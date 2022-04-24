@@ -27,8 +27,9 @@ def start(message):
         # если юзера нет в базе, добавляем его
         bot.send_message(message.chat.id, 'Привет, ' + str(message.from_user.first_name) + '!')
         db.add_subscriber(message.from_user.id, username=message.from_user.username,
-                          first_name=message.from_user.first_name, last_name=message.from_user.last_name)
-
+                          first_name=message.from_user.first_name, last_name=message.from_user.last_name,
+                          status_sub=True)
+        newUsers(message)
     bot.send_message(message.chat.id, "Список доступных команд\n"
                                       "/network - связь с нами\n"
                                       "/help - Справка\n"
@@ -48,8 +49,7 @@ def help(message):
     help_me = types.InlineKeyboardMarkup()
     help_Button = types.InlineKeyboardButton(text="Вот ссылки на связь с ним:", callback_data='info_about_me')
     help_me.add(help_Button)
-    bot.send_message(message.chat.id, "Я помочь ничем не могу(\n"
-                                      "Уж так меня запрограммировал мой создатель, но вы можете узнать у него что вам нужно",
+    bot.send_message(message.chat.id, "Я помочь ничем не могу(\nУж так меня запрограммировал мой создатель, но вы можете узнать у него что вам нужно",
                      reply_markup=help_me)
 
 
@@ -60,7 +60,7 @@ def network(message):
     item = [
         types.InlineKeyboardButton("Софа", callback_data='test'),
         types.InlineKeyboardButton("Слава", callback_data='info_about_me'),
-        types.InlineKeyboardButton("🍑жопа", url="https://vk.com/ivanyshka4"),
+        types.InlineKeyboardButton("🍑жопа", url="https://www.youtube.com/"),
         types.InlineKeyboardButton("🤞", url="https://vk.com/russellmoore"),
         types.InlineKeyboardButton("🤙🏽", url="https://vk.com/yumaguzhin_ddd"),
         types.InlineKeyboardButton("🤘", url="https://vk.com/vovanchoyt")
@@ -96,6 +96,11 @@ def callback(call):
         elif call.data == 'cancel':
             bot.delete_message(chat_id=call.message.chat.id, message_id=call.message.message_id)
             return network(call.message)
+        elif call.data == 'sub':
+            bot.delete_message(chat_id=call.message.chat.id, message_id=call.message.message_id)
+        elif call.data == 'unsub':
+            bot.delete_message(chat_id=call.message.chat.id, message_id=call.message.message_id)
+            return unsubscribe(call.message)
 
 
 # /sub - подписаться
@@ -112,18 +117,39 @@ def subscribe(message: types.Message):
 def unsubscribe(message: types.Message):
     if not bool(len(db.subscriber_exists(message.from_user.id))):
         # если юзера нет в базе, добавляем его с неактивной подпиской (запоминаем)
-        db.add_subscriber(message.from_user.id, False)
+        db.add_subscriber(message.from_user.id, username=message.from_user.username,
+                          first_name=message.from_user.first_name, last_name=message.from_user.last_name,
+                          status_sub=False)
         bot.send_message(message.chat.id, "Вы итак не подписаны.")
     else:
         # если он уже есть, то просто обновляем ему статус подписки
-        db.update_subscription(message.from_user.id, False)
+        db.update_subscription(message.from_user.id, status_sub=False)
         bot.send_message(message.chat.id, "Вы успешно отписаны от рассылки.")
 
 
 # /getsub - получение всех подписчиков
 @bot.message_handler(commands=['getsub'])
 def getsub(message: types.Message):
-    bot.send_message(message.chat.id, " \n".join(map(str, db.get_subscriptions())))
+    i = 0
+    listUsers = types.InlineKeyboardMarkup()
+    try:
+        for x in db.get_subscriptions():
+            listUsers.add(types.InlineKeyboardButton(text=str(x[i][4]),
+                                                     url='https://t.me/' + str(x[i][3])))
+            i += 1
+    except Exception as e:
+        print(e)
+    finally:
+        # listUsers.add(types.InlineKeyboardButton(text="✅", callback_data='sub'),
+        #               types.InlineKeyboardButton(text="❌", callback_data='unsub'))
+        if i:
+            bot.send_message(message.chat.id, "Ссылки на подписчиков", reply_markup=listUsers)
+            if bool(db.get_subscription(message.from_user.id)):
+                bot.send_message(message.chat.id, "/unsub - Если хотите отписаться")
+            else:
+                bot.send_message(message.chat.id, "/sub - Если хотите подписаться")
+        else:
+            bot.send_message(message.chat.id, "Пока никто не подписался( \n", "Если хотите подписаться нажмите на /sub")
 
 
 # /getuser - получение всех ПОЛЬЗОВАТЕЛЕЙ
@@ -133,9 +159,11 @@ def getsub(message: types.Message):
     try:
         while 1:
             if bool(db.get_user()[i][5]):
-                bot.send_message(message.chat.id, str(i+1) + ". " + "".join(map(str, db.get_user()[i][4])) + ' ' + "".join(map(str, db.get_user()[i][5])))
+                bot.send_message(message.chat.id,
+                                 str(i + 1) + ". " + "".join(map(str, db.get_user()[i][4])) + ' ' + "".join(
+                                     map(str, db.get_user()[i][5])))
             else:
-                bot.send_message(message.chat.id, str(i+1) + ". " + "".join(map(str, db.get_user()[i][4])))
+                bot.send_message(message.chat.id, str(i + 1) + ". " + "".join(map(str, db.get_user()[i][4])))
             i += 1
     except Exception as e:
         print(e)
@@ -158,12 +186,14 @@ def delete_user(message: types.Message):
 # /referral
 @bot.message_handler(commands=['referral'])
 def referral(message):
+    """Нужно добавить возможность использования по username"""
     if not int(db.subscriber_exists(message.from_user.id)[0][6]):
-        msg = bot.send_message(message.chat.id, "Введите реферальный код друга, если у вас нет кода введите 6:\n")
+        msg = bot.send_message(message.chat.id, "Введите реферальный код друга, если у вас нет кода введите 0:\n")
         bot.register_next_step_handler(msg, start_2)
     else:
         bot.send_message(message.chat.id, "Вы уже вводили реферальный код")
-        bot.send_message(message.chat.id, "Ваш реферальный код - " + str(db.subscriber_exists(message.from_user.id)[0][0]))
+        bot.send_message(message.chat.id,
+                         "Ваш реферальный код - " + str(db.subscriber_exists(message.from_user.id)[0][0]))
 
 
 def start_2(message):
@@ -173,25 +203,35 @@ def start_2(message):
         db.commit_subscription()
         bot.send_message(message.chat.id, 'Ваш друг успешно найден: \n' + " ".join(
             map(str, db.subscriber_exists_id(message.text))) + "\n Код подтверждён")
+    elif not bool(message.text):
+        pass  # нужно дописать функцию, если у него нет друга с реферальным кодом, но он хочет дать свой код.
     else:
         bot.send_message(message.chat.id, "Пользователя с данным кодом не существует")
 
 
 # /Вывод участников
 @bot.message_handler(commands=['list_users'])
-def getsub(message: types.Message):
+def list_users(message: types.Message):
     i = 0
     listUsers = types.InlineKeyboardMarkup()
     try:
         while 1:
-            listUsers.add(types.InlineKeyboardButton(text=str("".join(map(str, db.get_user()[i][4]))), url=str('https://t.me/' + "".join(map(str, db.get_user()[i][3])))))
+            listUsers.add(types.InlineKeyboardButton(text=str("".join(map(str, db.get_user()[i][4]))),
+                                                     url=str('https://t.me/' + "".join(map(str, db.get_user()[i][3])))))
             # bot.send_message(message.chat.id, '@' + "".join(map(str, db.get_user()[i][3])))
-            i+=1
+            i += 1
     except Exception as e:
         print(e)
     finally:
         # bot.send_message(message.chat.id, "Все участники розыгрыша")
         bot.send_message(message.chat.id, "Ссылки на участников", reply_markup=listUsers)
+
+
+def newUsers(message):
+    new_user = types.InlineKeyboardMarkup()
+    info_user = types.InlineKeyboardButton(text=str(message.from_user.first_name), url=str('https://t.me/' + message.from_user.username))
+    new_user.add(info_user)
+    bot.send_message(TOKEN.chatId, "У вас новый пользователь:", reply_markup=new_user)
 
 
 # echo bot
